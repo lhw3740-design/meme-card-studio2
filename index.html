@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>짤-카드 스튜디오</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-app: #1B2430;
+    --bg-panel: #212D3D;
+    --bg-panel-raised: #283548;
+    --bg-stage: #E9E4D8;
+    --stage-checker-a: #E9E4D8;
+    --stage-checker-b: #DCD5C4;
+    --text-hi: #F5F2EA;
+    --text-mid: #AEB8C7;
+    --text-dim: #71809A;
+    --accent: #F2A93B;
+    --accent-ink: #23180A;
+    --danger: #E2604F;
+    --border: #34435A;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg-app);
+    color:var(--text-hi);
+    font-family:'Noto Sans KR', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    display:grid;
+    grid-template-columns: 1fr 340px;
+    min-height:100vh;
+  }
+  @media (max-width: 860px){
+    .app{ grid-template-columns: 1fr; }
+    .panel{ order:2; border-left:none; border-top:1px solid var(--border); }
+    .stage-wrap{ order:1; }
+  }
+
+  /* ---------- Stage (canvas area) ---------- */
+  .stage-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:32px;
+    gap:16px;
+  }
+  .stage-header{
+    width:100%;
+    max-width:640px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  .stage-header h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:22px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .stage-header span{
+    color:var(--text-dim);
+    font-size:13px;
+  }
+  .stage{
+    position:relative;
+    width:100%;
+    max-width:640px;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    background:
+      repeating-conic-gradient(var(--stage-checker-a) 0% 25%, var(--stage-checker-b) 0% 50%) 50% / 24px 24px;
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    touch-action:none;
+    cursor:grab;
+  }
+  canvas.dragging{ cursor:grabbing; }
+  .empty-hint{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:32px;
+    color:var(--text-dim);
+    font-size:14px;
+    pointer-events:none;
+  }
+  .drag-hint{
+    color:var(--text-dim);
+    font-size:12px;
+    max-width:640px;
+    width:100%;
+  }
+
+  /* ---------- Control panel ---------- */
+  .panel{
+    background:var(--bg-panel);
+    border-left:1px solid var(--border);
+    padding:28px 24px 32px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    overflow-y:auto;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand .mark{
+    width:30px;height:30px;border-radius:8px;
+    background:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;color:var(--accent-ink);
+    font-size:15px;
+  }
+  .brand strong{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:15px;
+    letter-spacing:-0.01em;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .field label{
+    font-size:12.5px;
+    color:var(--text-mid);
+    font-weight:500;
+  }
+  .upload-btn{
+    border:1px dashed var(--border);
+    border-radius:var(--radius);
+    background:var(--bg-panel-raised);
+    color:var(--text-hi);
+    padding:14px 12px;
+    font-size:13px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .upload-btn:hover{ border-color:var(--accent); }
+  .upload-btn input{ display:none; }
+  .file-name{
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  .error-box{
+    display:none;
+    background:rgba(226,96,79,0.12);
+    border:1px solid var(--danger);
+    color:#FFD9D2;
+    border-radius:var(--radius);
+    padding:10px 12px;
+    font-size:12.5px;
+    line-height:1.5;
+  }
+  .error-box.show{ display:block; }
+  .ratio-group{
+    display:flex;
+    gap:8px;
+  }
+  .ratio-btn{
+    flex:1;
+    padding:10px 0;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--bg-panel-raised);
+    color:var(--text-mid);
+    font-size:13px;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .ratio-btn.active{
+    background:var(--accent);
+    color:var(--accent-ink);
+    border-color:var(--accent);
+    font-weight:700;
+  }
+  .ratio-btn:disabled{
+    opacity:0.45;
+    cursor:not-allowed;
+  }
+  .template-name-input{
+    background:var(--bg-panel-raised);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    color:var(--text-hi);
+    padding:10px 12px;
+    font-size:13px;
+    font-family:inherit;
+    width:100%;
+  }
+  .template-name-input:disabled{ opacity:0.45; cursor:not-allowed; }
+  .btn-secondary{
+    background:var(--bg-panel-raised);
+    color:var(--text-hi);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:10px 12px;
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    width:100%;
+  }
+  .btn-secondary:hover{ border-color:var(--accent); }
+  .btn-secondary:disabled{ opacity:0.4; cursor:not-allowed; }
+  .template-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:220px;
+    overflow-y:auto;
+  }
+  .template-empty{
+    font-size:12px;
+    color:var(--text-dim);
+    padding:8px 2px;
+  }
+  .template-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    background:var(--bg-panel-raised);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+  }
+  .template-item-name{
+    font-size:12.5px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width:100px;
+  }
+  .template-item-actions{
+    display:flex;
+    gap:4px;
+    flex-shrink:0;
+  }
+  .template-item-actions button{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--text-mid);
+    border-radius:6px;
+    font-size:11px;
+    padding:5px 7px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .template-item-actions button:hover{ border-color:var(--accent); color:var(--text-hi); }
+  .template-item-actions button.danger:hover{ border-color:var(--danger); color:#FFD9D2; }
+  .status-box{
+    display:none;
+    border-radius:var(--radius);
+    padding:10px 12px;
+    font-size:12.5px;
+    line-height:1.5;
+  }
+  .status-box.show{ display:block; }
+  .status-box.status-error{
+    background:rgba(226,96,79,0.12);
+    border:1px solid var(--danger);
+    color:#FFD9D2;
+  }
+  .status-box.status-success{
+    background:rgba(242,169,59,0.12);
+    border:1px solid var(--accent);
+    color:#FFE7BE;
+  }
+  textarea{
+    resize:vertical;
+    min-height:64px;
+    background:var(--bg-panel-raised);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    color:var(--text-hi);
+    padding:10px 12px;
+    font-size:14px;
+    font-family:inherit;
+    line-height:1.5;
+  }
+  textarea:disabled, .upload-btn.disabled, select:disabled, input:disabled{
+    opacity:0.45;
+    cursor:not-allowed;
+    pointer-events:none;
+  }
+  textarea:focus, select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  input[type="range"]{
+    flex:1;
+    accent-color: var(--accent);
+  }
+  .row .value{
+    width:38px;
+    text-align:right;
+    font-size:12.5px;
+    color:var(--text-mid);
+    font-variant-numeric:tabular-nums;
+  }
+  input[type="color"]{
+    -webkit-appearance:none;
+    width:36px;height:36px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:none;
+    padding:0;
+    cursor:pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper{ padding:2px; }
+  input[type="color"]::-webkit-color-swatch{ border-radius:6px; border:none; }
+  select{
+    background:var(--bg-panel-raised);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    color:var(--text-hi);
+    padding:10px 12px;
+    font-size:13.5px;
+    font-family:inherit;
+  }
+  .divider{
+    height:1px;
+    background:var(--border);
+    margin:2px 0;
+  }
+  .export-row{
+    display:flex;
+    gap:10px;
+  }
+  .export-row select{ flex:1; }
+  .btn-primary{
+    background:var(--accent);
+    color:var(--accent-ink);
+    border:none;
+    border-radius:var(--radius);
+    padding:13px 16px;
+    font-size:14px;
+    font-weight:700;
+    font-family:'Space Grotesk', sans-serif;
+    cursor:pointer;
+    transition:filter .15s ease;
+  }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-primary:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  .checklist{
+    font-size:11.5px;
+    color:var(--text-dim);
+    line-height:1.6;
+    border-top:1px solid var(--border);
+    padding-top:14px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="stage-wrap">
+    <div class="stage-header">
+      <h1>짤-카드 스튜디오</h1>
+      <span id="dimsLabel">이미지를 업로드해 주세요</span>
+    </div>
+    <div class="stage">
+      <canvas id="canvas" width="1080" height="1080"></canvas>
+      <div class="empty-hint" id="emptyHint">PNG 또는 JPEG 이미지를<br>오른쪽에서 업로드하면 여기에 미리보기가 표시돼요</div>
+    </div>
+    <div class="drag-hint" id="dragHint" style="display:none;">💡 미리보기 위의 문구를 마우스로 눌러 원하는 위치로 드래그할 수 있어요.</div>
+  </div>
+
+  <div class="panel">
+    <div class="brand">
+      <div class="mark">짤</div>
+      <strong>카드 1~5 — 편집·화면비·극단 입력·템플릿·JSON</strong>
+    </div>
+
+    <div class="field">
+      <label for="fileInput">이미지 업로드 (PNG · JPEG)</label>
+      <label class="upload-btn" id="uploadBtn" for="fileInput">파일 선택 또는 드래그해서 놓기
+        <input type="file" id="fileInput" accept="image/png, image/jpeg">
+      </label>
+      <div class="file-name" id="fileName">아직 업로드한 파일이 없어요</div>
+      <div class="error-box" id="errorBox"></div>
+    </div>
+
+    <div class="field">
+      <label>화면비</label>
+      <div class="ratio-group" id="ratioGroup">
+        <button type="button" class="ratio-btn active" data-ratio="1:1" disabled>1:1</button>
+        <button type="button" class="ratio-btn" data-ratio="4:5" disabled>4:5</button>
+        <button type="button" class="ratio-btn" data-ratio="9:16" disabled>9:16</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="textInput">문구</label>
+      <textarea id="textInput" placeholder="카드에 넣을 문구를 입력하세요" maxlength="2000" disabled></textarea>
+    </div>
+
+    <div class="field">
+      <label for="sizeRange">글자 크기 (최대치)</label>
+      <div class="row">
+        <input type="range" id="sizeRange" min="12" max="140" value="48" disabled>
+        <span class="value" id="sizeValue">48</span>
+      </div>
+      <div class="file-name" id="autoFitNote" style="display:none;"></div>
+    </div>
+
+    <div class="field">
+      <label>글자 색상</label>
+      <div class="row">
+        <input type="color" id="colorInput" value="#ffffff" disabled>
+        <span class="value" id="colorValue">#FFFFFF</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="fontSelect">폰트 스타일</label>
+      <select id="fontSelect" disabled>
+        <option value="'Noto Sans KR', sans-serif" selected>기본 (Noto Sans KR)</option>
+        <option value="'Space Grotesk', sans-serif">굵은 표제용 (Space Grotesk)</option>
+        <option value="'Noto Sans KR', sans-serif" data-weight="900">임팩트 (굵게)</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label for="templateNameInput">템플릿</label>
+      <input type="text" id="templateNameInput" class="template-name-input" placeholder="템플릿 이름" maxlength="40" disabled>
+      <button class="btn-secondary" id="saveTemplateBtn" disabled>현재 설정을 새 템플릿으로 저장</button>
+      <div class="row" style="gap:8px;">
+        <button class="btn-secondary" id="exportTemplatesBtn" type="button">JSON으로 내보내기</button>
+        <label class="btn-secondary" id="importTemplatesLabel" style="text-align:center; cursor:pointer; margin:0;">JSON 가져오기
+          <input type="file" id="importTemplatesInput" accept="application/json,.json" style="display:none;">
+        </label>
+      </div>
+      <div class="status-box" id="templateStatus"></div>
+      <div class="template-list" id="templateList"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>내보내기</label>
+      <div class="export-row">
+        <select id="formatSelect" disabled>
+          <option value="image/png">PNG로 저장</option>
+          <option value="image/jpeg">JPEG로 저장</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="downloadBtn" disabled>완성한 카드 다운로드</button>
+    </div>
+
+    <div class="checklist">
+      TO3-C04/C05 PNG·JPEG 업로드 · TO3-C06 위치 드래그 반영 · TO3-C07 크기 슬라이더 반영 · TO3-C08 색상 반영 · TO3-C09/C10 미지원 파일 오류 안내 · TO3-C11~13 1:1·4:5·9:16 미리보기-파일 일치 · TO3-C14~16 극단 입력에도 편집 내용 유지 · TO3-C17~21 템플릿 생성·수정·삭제·새로고침 유지 · TO3-C22~24 템플릿 JSON 가져오기(정상 복원/손상·누락 시 거부)
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const fileInput = document.getElementById('fileInput');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const fileName = document.getElementById('fileName');
+  const errorBox = document.getElementById('errorBox');
+  const textInput = document.getElementById('textInput');
+  const sizeRange = document.getElementById('sizeRange');
+  const sizeValue = document.getElementById('sizeValue');
+  const colorInput = document.getElementById('colorInput');
+  const colorValue = document.getElementById('colorValue');
+  const fontSelect = document.getElementById('fontSelect');
+  const formatSelect = document.getElementById('formatSelect');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const emptyHint = document.getElementById('emptyHint');
+  const dragHint = document.getElementById('dragHint');
+  const dimsLabel = document.getElementById('dimsLabel');
+  const ratioButtons = Array.from(document.querySelectorAll('.ratio-btn'));
+  const autoFitNote = document.getElementById('autoFitNote');
+  const templateNameInput = document.getElementById('templateNameInput');
+  const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+  const templateList = document.getElementById('templateList');
+  const exportTemplatesBtn = document.getElementById('exportTemplatesBtn');
+  const importTemplatesInput = document.getElementById('importTemplatesInput');
+  const templateStatus = document.getElementById('templateStatus');
+
+  const ALLOWED_TYPES = ['image/png', 'image/jpeg'];
+  // 인스타그램 기준 해상도: 1:1, 4:5, 9:16 (카드2 — 화면비별 미리보기/파일 일치)
+  const RATIOS = { '1:1': [1080, 1080], '4:5': [1080, 1350], '9:16': [1080, 1920] };
+  let currentRatio = '1:1';
+
+  const state = {
+    img: null,
+    imgIsPng: true,
+    imgDataUrl: null, // 템플릿에 이미지를 함께 저장하기 위한 원본 데이터 URL
+    text: '',
+    relX: 0.5, // 문구 위치를 비율(0~1)로 저장 → 화면비를 바꿔도 상대 위치 유지
+    relY: 0.5,
+    fontSize: 48,
+    color: '#ffffff',
+    fontFamily: "'Noto Sans KR', sans-serif",
+    fontWeight: '700',
+  };
+
+  const controls = [textInput, sizeRange, colorInput, fontSelect, formatSelect, downloadBtn, templateNameInput, saveTemplateBtn];
+
+  function setControlsEnabled(enabled){
+    controls.forEach(el => el.disabled = !enabled);
+    ratioButtons.forEach(el => el.disabled = !enabled);
+    downloadBtn.disabled = !enabled;
+  }
+
+  // ---------- 화면비 ----------
+  ratioButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      currentRatio = btn.dataset.ratio;
+      ratioButtons.forEach(b => b.classList.toggle('active', b === btn));
+      applyRatio();
+    });
+  });
+
+  function applyRatio(){
+    const [w, h] = RATIOS[currentRatio];
+    canvas.width = w;
+    canvas.height = h;
+    dimsLabel.textContent = `${w} × ${h}px · ${currentRatio}`;
+    draw();
+  }
+
+  // 이미지를 목표 화면비에 맞춰 중앙 기준으로 크롭할 원본 영역 계산
+  function computeSourceRect(img, targetW, targetH){
+    const targetRatio = targetW / targetH;
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    let sx, sy, sw, sh;
+    if (imgRatio > targetRatio) {
+      sh = img.naturalHeight;
+      sw = sh * targetRatio;
+      sx = (img.naturalWidth - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.naturalWidth;
+      sh = sw / targetRatio;
+      sx = 0;
+      sy = (img.naturalHeight - sh) / 2;
+    }
+    return { sx, sy, sw, sh };
+  }
+
+  function showError(message){
+    errorBox.textContent = message;
+    errorBox.classList.add('show');
+  }
+  function clearError(){
+    errorBox.textContent = '';
+    errorBox.classList.remove('show');
+  }
+
+  // ---------- 카드4: 템플릿 관리 (localStorage에 영속 저장) ----------
+  // 통과 기준 TO3-C17~21과 "수정·삭제 대상이 바뀐다" 방지를 위해
+  // 배열 인덱스가 아니라 각 템플릿의 고유 id로 항상 조회한다.
+  const TEMPLATE_STORAGE_KEY = 'jjalCardTemplates_v1';
+
+  function loadTemplates(){
+    try {
+      const raw = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function persistTemplates(candidateTemplates){
+    try {
+      localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(candidateTemplates));
+      templates = candidateTemplates; // 저장에 성공했을 때만 실제 목록을 교체 (실패 시 변경 금지)
+      return true;
+    } catch (e) {
+      showError('템플릿 저장에 실패했어요. 이미지가 커서 브라우저 저장 공간을 초과했을 수 있어요. 기존 템플릿은 그대로 남아 있어요.');
+      return false;
+    }
+  }
+  function makeTemplateId(){
+    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `tpl_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+  function currentSettingsSnapshot(){
+    return {
+      text: state.text,
+      fontSize: state.fontSize,
+      color: state.color,
+      fontFamily: state.fontFamily,
+      fontWeight: state.fontWeight,
+      ratio: currentRatio,
+      relX: state.relX,
+      relY: state.relY,
+      imgDataUrl: state.imgDataUrl || null, // 이미지도 원본 화질 그대로 함께 저장
+      imgIsPng: state.imgIsPng,
+    };
+  }
+
+  let templates = loadTemplates();
+
+  function renderTemplateList(){
+    templateList.innerHTML = '';
+    if (templates.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'template-empty';
+      empty.textContent = '아직 저장된 템플릿이 없어요';
+      templateList.appendChild(empty);
+      return;
+    }
+    templates.forEach(tpl => {
+      const row = document.createElement('div');
+      row.className = 'template-item';
+
+      const name = document.createElement('span');
+      name.className = 'template-item-name';
+      name.textContent = tpl.name;
+      name.title = tpl.name;
+
+      const actions = document.createElement('div');
+      actions.className = 'template-item-actions';
+
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.textContent = '불러오기';
+      loadBtn.addEventListener('click', () => applyTemplate(tpl.id)); // id로 조회
+
+      const updateBtn = document.createElement('button');
+      updateBtn.type = 'button';
+      updateBtn.textContent = '업데이트';
+      updateBtn.addEventListener('click', () => updateTemplate(tpl.id)); // id로 조회
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.textContent = '삭제';
+      deleteBtn.classList.add('danger');
+      deleteBtn.addEventListener('click', () => deleteTemplate(tpl.id)); // id로 조회
+
+      actions.appendChild(loadBtn);
+      actions.appendChild(updateBtn);
+      actions.appendChild(deleteBtn);
+      row.appendChild(name);
+      row.appendChild(actions);
+      templateList.appendChild(row);
+    });
+  }
+
+  saveTemplateBtn.addEventListener('click', () => {
+    const name = templateNameInput.value.trim();
+    if (!name) { templateNameInput.focus(); return; }
+    const candidate = [...templates, { id: makeTemplateId(), name, ...currentSettingsSnapshot() }];
+    if (persistTemplates(candidate)) {
+      templateNameInput.value = '';
+      renderTemplateList();
+    }
+  });
+
+  function applyTemplate(id){
+    const tpl = templates.find(t => t.id === id); // 배열 위치가 아니라 id로 항상 찾는다
+    if (!tpl) return;
+
+    state.text = tpl.text;
+    state.fontSize = tpl.fontSize;
+    state.color = tpl.color;
+    state.fontFamily = tpl.fontFamily;
+    state.fontWeight = tpl.fontWeight;
+    state.relX = tpl.relX;
+    state.relY = tpl.relY;
+
+    textInput.value = tpl.text;
+    sizeRange.value = tpl.fontSize;
+    sizeValue.textContent = tpl.fontSize;
+    colorInput.value = tpl.color;
+    colorValue.textContent = tpl.color.toUpperCase();
+    const optIndex = Array.from(fontSelect.options).findIndex(opt =>
+      opt.value === tpl.fontFamily && (opt.dataset.weight || '700') === tpl.fontWeight
+    );
+    fontSelect.selectedIndex = optIndex >= 0 ? optIndex : 0;
+
+    function finishRatioAndDraw(){
+      if (RATIOS[tpl.ratio]) {
+        currentRatio = tpl.ratio;
+        ratioButtons.forEach(b => b.classList.toggle('active', b.dataset.ratio === tpl.ratio));
+        applyRatio(); // 내부에서 draw() 호출
+      } else {
+        draw();
+      }
+    }
+
+    if (tpl.imgDataUrl) {
+      const img = new Image();
+      img.onload = () => {
+        state.img = img;
+        state.imgDataUrl = tpl.imgDataUrl;
+        state.imgIsPng = tpl.imgIsPng;
+        fileName.textContent = `${tpl.name} (템플릿에 저장된 이미지)`;
+        emptyHint.style.display = 'none';
+        dragHint.style.display = 'block';
+        formatSelect.value = tpl.imgIsPng ? 'image/png' : 'image/jpeg';
+        setControlsEnabled(true);
+        finishRatioAndDraw();
+      };
+      img.onerror = () => {
+        showError('템플릿에 저장된 이미지를 불러오지 못했어요. 문구·스타일만 적용했어요.');
+        finishRatioAndDraw();
+      };
+      img.src = tpl.imgDataUrl;
+    } else {
+      finishRatioAndDraw();
+    }
+  }
+
+  function updateTemplate(id){
+    const idx = templates.findIndex(t => t.id === id); // id로 찾은 뒤에만 그 자리를 갱신
+    if (idx === -1) return;
+    const candidate = templates.slice();
+    candidate[idx] = { id, name: candidate[idx].name, ...currentSettingsSnapshot() };
+    if (persistTemplates(candidate)) {
+      renderTemplateList(); // 저장된 데이터 기준으로 목록을 다시 그림
+    }
+  }
+
+  function deleteTemplate(id){
+    const candidate = templates.filter(t => t.id !== id); // id로 걸러내어 삭제, 인덱스 사용 안 함
+    if (persistTemplates(candidate)) {
+      renderTemplateList();
+    }
+  }
+
+  // ---------- 카드5: 템플릿 JSON 내보내기 / 가져오기 ----------
+  function showTemplateStatus(type, message){
+    templateStatus.textContent = message;
+    templateStatus.classList.remove('status-error', 'status-success');
+    templateStatus.classList.add(type === 'success' ? 'status-success' : 'status-error');
+    templateStatus.classList.add('show');
+  }
+
+  exportTemplatesBtn.addEventListener('click', () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      templates: templates,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'jjal-templates.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  const TEMPLATE_REQUIRED_FIELDS = ['name', 'text', 'fontSize', 'color', 'fontFamily', 'fontWeight', 'ratio', 'relX', 'relY'];
+
+  // 형식(필수 항목 포함)까지 전부 확인한 뒤에만 ok:true를 반환한다.
+  // 하나라도 문제가 있으면 즉시 실패로 판정해 가져오기 전체를 취소할 수 있게 한다 (TO3-C24).
+  function validateImportedPayload(parsed){
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ok: false, reason: '최상위 형식이 올바르지 않아요 (객체 형태여야 해요).' };
+    }
+    if (!Array.isArray(parsed.templates)) {
+      return { ok: false, reason: '"templates" 배열이 없어요.' };
+    }
+    for (let i = 0; i < parsed.templates.length; i++) {
+      const t = parsed.templates[i];
+      if (!t || typeof t !== 'object') {
+        return { ok: false, reason: `${i + 1}번째 템플릿 항목의 형식이 올바르지 않아요.` };
+      }
+      for (const field of TEMPLATE_REQUIRED_FIELDS) {
+        if (!(field in t)) {
+          return { ok: false, reason: `${i + 1}번째 템플릿에 필수 항목 "${field}"이(가) 빠져 있어요.` };
+        }
+      }
+      if (!RATIOS[t.ratio]) {
+        return { ok: false, reason: `${i + 1}번째 템플릿의 화면비 값(${t.ratio})을 알 수 없어요.` };
+      }
+    }
+    return { ok: true };
+  }
+
+  importTemplatesInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let parsed;
+      try {
+        parsed = JSON.parse(ev.target.result); // 문법이 손상된 JSON은 여기서 예외 발생 (TO3-C23)
+      } catch (err) {
+        showTemplateStatus('error', 'JSON 문법이 손상되어 있어요. 가져오기를 취소했고, 기존 템플릿은 그대로예요.');
+        importTemplatesInput.value = '';
+        return;
+      }
+
+      const check = validateImportedPayload(parsed);
+      if (!check.ok) {
+        showTemplateStatus('error', `${check.reason} 가져오기를 취소했고, 기존 템플릿은 그대로예요.`);
+        importTemplatesInput.value = '';
+        return;
+      }
+
+      // 검증을 모두 통과한 뒤에만 반영한다. 기존 템플릿에 새 id로 합치기(교체 아님).
+      const incoming = parsed.templates.map(t => ({ ...t, id: makeTemplateId() }));
+      const candidate = [...templates, ...incoming];
+      if (persistTemplates(candidate)) {
+        showTemplateStatus('success', `템플릿 ${incoming.length}개를 가져와 추가했어요.`);
+        renderTemplateList();
+      }
+      importTemplatesInput.value = '';
+    };
+    reader.onerror = () => {
+      showTemplateStatus('error', '파일을 읽지 못했어요. 기존 템플릿은 그대로예요.');
+      importTemplatesInput.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  renderTemplateList();
+
+  // ---------- 파일 업로드 처리 ----------
+  uploadBtn.addEventListener('dragover', (e) => { e.preventDefault(); });
+  uploadBtn.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file){
+    clearError();
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      const ext = (file.name.split('.').pop() || '알 수 없음').toUpperCase();
+      showError(
+        `지원하지 않는 파일 형식이에요 (.${ext}). PNG 또는 JPEG(JPG) 파일만 업로드할 수 있어요. ` +
+        `기존에 작업하던 내용은 그대로 유지됩니다.`
+      );
+      fileInput.value = '';
+      return; // 기존 상태 유지 (TO3-C09)
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      state.img = img;
+      state.imgIsPng = file.type === 'image/png';
+      state.relX = 0.5;
+      state.relY = 0.5;
+
+      fileName.textContent = `${file.name} (원본 ${img.naturalWidth}×${img.naturalHeight})`;
+      emptyHint.style.display = 'none';
+      dragHint.style.display = 'block';
+      formatSelect.value = state.imgIsPng ? 'image/png' : 'image/jpeg';
+      setControlsEnabled(true);
+      URL.revokeObjectURL(objectUrl);
+      applyRatio();
+    };
+    img.onerror = () => {
+      showError('이미지를 불러오지 못했어요. 파일이 손상되지 않았는지 확인해 주세요.');
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.src = objectUrl;
+
+    // 템플릿에 이미지를 원본 화질 그대로 저장하기 위해 데이터 URL도 별도로 읽어둔다
+    state.imgDataUrl = null;
+    const reader = new FileReader();
+    reader.onload = (e) => { state.imgDataUrl = e.target.result; };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- 컨트롤 이벤트 ----------
+  textInput.addEventListener('input', () => { state.text = textInput.value; draw(); });
+  sizeRange.addEventListener('input', () => {
+    state.fontSize = Number(sizeRange.value);
+    sizeValue.textContent = sizeRange.value;
+    draw();
+  });
+  colorInput.addEventListener('input', () => {
+    state.color = colorInput.value;
+    colorValue.textContent = colorInput.value.toUpperCase();
+    draw();
+  });
+  fontSelect.addEventListener('change', () => {
+    const opt = fontSelect.options[fontSelect.selectedIndex];
+    state.fontFamily = opt.value;
+    state.fontWeight = opt.dataset.weight || '700';
+    draw();
+  });
+
+  // ---------- 그리기 ----------
+  // 지정한 최대 폭을 넘는 문구를 단어 단위로 줄바꿈하고,
+  // 공백 없는 긴 단어(이모지 나열, URL, 긴 한글 등)는 글자 단위로 강제 개행한다.
+  function wrapText(rawText, maxWidth){
+    const paragraphs = (rawText || '').split('\n');
+    const lines = [];
+    paragraphs.forEach(para => {
+      if (para === '') { lines.push(''); return; }
+      const words = para.split(' ');
+      let current = '';
+      words.forEach(word => {
+        const candidate = current ? current + ' ' + word : word;
+        if (ctx.measureText(candidate).width <= maxWidth) {
+          current = candidate;
+          return;
+        }
+        if (current) { lines.push(current); current = ''; }
+        if (ctx.measureText(word).width <= maxWidth) {
+          current = word;
+          return;
+        }
+        // 단어 하나가 이미 영역보다 넓음 → 글자 단위로 강제 개행
+        let chunk = '';
+        Array.from(word).forEach(ch => {
+          const test = chunk + ch;
+          if (chunk === '' || ctx.measureText(test).width <= maxWidth) {
+            chunk = test;
+          } else {
+            lines.push(chunk);
+            chunk = ch;
+          }
+        });
+        current = chunk;
+      });
+      lines.push(current);
+    });
+    return lines.length ? lines : [''];
+  }
+
+  // 지정 영역(가로/세로) 안에 문구가 들어오도록 글자 크기를 필요한 만큼만 자동 축소한다.
+  // 슬라이더 값은 "최대 크기"이고, 실제로 그려지는 크기는 이보다 작을 수 있다.
+  function fitText(){
+    const maxWidth = canvas.width * 0.86;
+    const maxHeight = canvas.height * 0.86;
+    const minSize = 10;
+    let size = state.fontSize;
+    let lines = [''];
+
+    while (size >= minSize) {
+      ctx.font = `${state.fontWeight} ${size}px ${state.fontFamily}`;
+      lines = wrapText(state.text, maxWidth);
+      const totalHeight = size * 1.2 * lines.length;
+      if (totalHeight <= maxHeight) break;
+      size -= 2;
+    }
+    if (size < minSize) size = minSize;
+    ctx.font = `${state.fontWeight} ${size}px ${state.fontFamily}`;
+    lines = wrapText(state.text, maxWidth);
+    return { size, lines, lineHeight: size * 1.2 };
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (state.img) {
+      const { sx, sy, sw, sh } = computeSourceRect(state.img, canvas.width, canvas.height);
+      ctx.drawImage(state.img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    }
+    if (!state.text) {
+      autoFitNote.style.display = 'none';
+      return;
+    }
+
+    const x = state.relX * canvas.width;
+    const y = state.relY * canvas.height;
+
+    const fit = fitText();
+    ctx.font = `${state.fontWeight} ${fit.size}px ${state.fontFamily}`;
+    ctx.fillStyle = state.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2, fit.size * 0.06);
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+
+    const totalHeight = fit.lineHeight * fit.lines.length;
+    const startY = y - totalHeight / 2 + fit.lineHeight / 2;
+
+    fit.lines.forEach((line, i) => {
+      const ly = startY + i * fit.lineHeight;
+      ctx.strokeText(line, x, ly);
+      ctx.fillText(line, x, ly);
+    });
+
+    if (fit.size < state.fontSize) {
+      autoFitNote.textContent = `영역에 맞춰 ${fit.size}px로 자동 축소됨 (지정값 ${state.fontSize}px)`;
+      autoFitNote.style.display = 'block';
+    } else {
+      autoFitNote.style.display = 'none';
+    }
+  }
+
+  // ---------- 드래그 ----------
+  let dragging = false;
+  let dragOffset = { x: 0, y: 0 };
+
+  function canvasPoint(evt){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (evt.clientX - rect.left) * scaleX,
+      y: (evt.clientY - rect.top) * scaleY,
+    };
+  }
+
+  function textBounds(){
+    if (!state.text) return null;
+    const fit = fitText();
+    let maxWidth = 0;
+    fit.lines.forEach(line => { maxWidth = Math.max(maxWidth, ctx.measureText(line).width); });
+    const totalHeight = fit.lineHeight * fit.lines.length;
+    const x = state.relX * canvas.width;
+    const y = state.relY * canvas.height;
+    return {
+      left: x - maxWidth / 2,
+      right: x + maxWidth / 2,
+      top: y - totalHeight / 2,
+      bottom: y + totalHeight / 2,
+    };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!state.img || !state.text) return;
+    const p = canvasPoint(e);
+    const b = textBounds();
+    if (b && p.x >= b.left && p.x <= b.right && p.y >= b.top && p.y <= b.bottom) {
+      dragging = true;
+      dragOffset.x = p.x - state.relX * canvas.width;
+      dragOffset.y = p.y - state.relY * canvas.height;
+      canvas.classList.add('dragging');
+      canvas.setPointerCapture(e.pointerId);
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const p = canvasPoint(e);
+    const absX = Math.min(Math.max(p.x - dragOffset.x, 0), canvas.width);
+    const absY = Math.min(Math.max(p.y - dragOffset.y, 0), canvas.height);
+    state.relX = absX / canvas.width;
+    state.relY = absY / canvas.height;
+    draw();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+    canvas.addEventListener(evt, () => {
+      dragging = false;
+      canvas.classList.remove('dragging');
+    });
+  });
+
+  // ---------- 다운로드 ----------
+  downloadBtn.addEventListener('click', () => {
+    document.fonts.ready.then(() => exportImage());
+  });
+
+  function exportImage(){
+    if (!state.img) return;
+    draw(); // 글꼴 준비 상태 기준으로 마지막 한 번 더 그려 미리보기=파일 일치 보장 (TO3-C11~13)
+    const mime = formatSelect.value;
+    let sourceCanvas = canvas;
+
+    if (mime === 'image/jpeg') {
+      // JPEG는 투명도를 지원하지 않으므로 흰 배경을 깔아 새로 합성
+      const tmp = document.createElement('canvas');
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
+      const tctx = tmp.getContext('2d');
+      tctx.fillStyle = '#ffffff';
+      tctx.fillRect(0, 0, tmp.width, tmp.height);
+      tctx.drawImage(canvas, 0, 0);
+      sourceCanvas = tmp;
+    }
+
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    const dataUrl = sourceCanvas.toDataURL(mime, 0.95);
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `jjal-card.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // 웹폰트가 늦게 로드되면 처음 그린 문구가 대체 글꼴로 남을 수 있어,
+  // 폰트 로딩이 끝나는 시점에 한 번 더 그려서 미리보기=다운로드 파일 일치를 보장한다.
+  Promise.all([
+    document.fonts.load("700 48px 'Noto Sans KR'"),
+    document.fonts.load("900 48px 'Noto Sans KR'"),
+    document.fonts.load("700 48px 'Space Grotesk'"),
+  ]).then(draw).catch(draw);
+
+  setControlsEnabled(false);
+  draw();
+})();
+</script>
+</body>
+</html>
